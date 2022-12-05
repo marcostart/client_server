@@ -8,3 +8,4 @@ jobs:
             - uses: actions/checkout@v3
             - run: gcc server_prev.c -o server
             - run: gcc client_prev.c -o ./clientd/client
+            - run: gcc ./producteur/test/prod_cons.c -o ./producteur/test/prod
