@@ -1,4 +1,4 @@
-name: clientServerC
+name: client
 run-name: ${{ github.actor }} exercice
 on: [push]
 jobs:
