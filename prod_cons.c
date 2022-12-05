@@ -11,10 +11,11 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <ctype.h>
+#include <fcntl.h>
 
-void produire ();
-void consommer ();
-sem_t mutex, plein , vide;
+void produire (short *);
+void consommer (short *);
+sem_t mutex, plein , vide, *plein2, *mutex2, *vide2;
 key_t shm_key; /*clé de la mémoire partagée*/
 int shmid, duree, produit = 0, consom =0, nb_vide; /* id de la mémoire partagée*/
 
@@ -34,20 +35,20 @@ void delay ()
     while ((double)((clock()-begin)/CLOCKS_PER_SEC) < 0.01);
 }
 int init(int memSize){
-  shm_key = ftok("prod_cons.key", 256); // création de la clé
+  shm_key = ftok("prod_con.key", 256); // création de la clé
   if(shm_key < 0){ // la clé n'a pas pu être créée
     fprintf(stderr, "Impossible de créer la clé (%s)\n", strerror(errno));
     return shm_key;
   }
   /* Création de la mémoire partagée */
   fprintf(stderr, "key %d\n", shm_key);
-  shmid = shmget(shm_key, memSize, IPC_EXCL | IPC_CREAT | 0666);
+  shmid = shmget(shm_key, 20, IPC_EXCL | IPC_CREAT | 0666);
   if (shmid<0){
     fprintf(stderr, "Impossible de créer la mémoire partagée (%s), %d\n", strerror(errno), errno);
     if(errno!=EEXIST)
       return shmid;
     /* Si la mémoire partagée existe déjà , il faut obtenir son id*/
-    shmid = shmget(shm_key, memSize, 0666);
+    shmid = shmget(shm_key, 20, 0666);
     if(shmid < 0)
       return shmid;
   }
@@ -90,11 +91,34 @@ int main(int argc, char *argv[]){
     nb_vide = atoi(argv[3]);
     if(ret < 0)
         return -1;
-    sem_init(&plein , 0 , 0 ) ;
-    sem_init(&vide , 0 , atoi(argv[3]) ) ;
-    sem_init(&mutex , 0 , 1 ) ;
+
+    // sem_init(&plein , 0 , 0 ) ;
+    // sem_init(&vide , 0 , atoi(argv[3]) ) ;
+    // sem_init(&mutex , 0 , 1 ) ;
+    if(( mutex2 = sem_open("/mutex2", O_CREAT, 0600, 1) )==SEM_FAILED)
+    {
+         perror ("impossible de créer le semaphore mutex\n");
+         exit (-1);
+     }
+     sem_unlink("/mutex2");
+     if(( vide2 = sem_open("/vide2", O_CREAT, 0600, atoi(argv[3])) )==SEM_FAILED)
+     {
+          perror ("impossible de créer le semaphore vide\n");
+          exit (-1);
+      }
+      sem_unlink("/vide2");
+      if(( plein2 = sem_open("/plein2", O_CREAT, 0600, 0) )==SEM_FAILED)
+      {
+           perror ("impossible de créer le semaphore plein\n");
+           exit (-1);
+       }
+       sem_unlink("/plein2");
     pid_t pidp[prod], pidc[cons];
-    int p =0, c=0;
+    int p =0, c=0, compt=0;
+    mem_attach(shmid, (void**)&adresse);
+    *(adresse) = 0;
+    *(adresse + 4) = 0;
+    *(adresse + 8) = atoi(argv[3]);
     while (p<prod || c<cons) {
         if (p<prod){
             pidp[p] = fork();
@@ -104,9 +128,15 @@ int main(int argc, char *argv[]){
               return 1;
           } else if(pidp[p] == 0){
                 mem_attach(shmid, (void**)&adresse);
+                // if (compt == 0){
+                //     *(adresse) = 0;
+                //     *(adresse + 4) = 0;
+                //     *(adresse + 8) = 0;
+                //     compt++;
+                // }
                 assert(adresse != NULL);
                 while (1) {
-                    produire ();
+                    produire (adresse);
                 }
 
                 return 0;
@@ -126,7 +156,7 @@ int main(int argc, char *argv[]){
                 mem_attach(shmid, (void**)&adresse);
                 assert(adresse != NULL);
                 while (1) {
-                    consommer ();
+                    consommer (adresse);
                 }
 
                 return 0;
@@ -136,16 +166,20 @@ int main(int argc, char *argv[]){
             c++;
         }
     }
-    int status;
+    int status, i=4;
     pid_t pid2;
     while (1){
         delay();
         printf("Affichage de l'etat de production :\n" );
         double temps = (double) clock()/CLOCKS_PER_SEC;
+        produit = *(adresse) ;
+        consom = *(adresse +4);
+        nb_vide = *(adresse + 8);
         printf("t = %f\n", temps);
         printf("X = %d\n", produit );
         printf("Y = %d\n", consom );
         printf("Z = %d\n", nb_vide );
+        //i--;
     }
 
     while( (pid2 = wait(&status)) > 0){
@@ -153,34 +187,46 @@ int main(int argc, char *argv[]){
     }
 }
 
-void produire(){
-    while (1){
-        sem_wait(&vide);
-        sem_wait(&mutex);
+void produire(short * addr){
+    int i=5;
+    while (i>0){
+        sem_wait(vide2);
+        sem_wait(mutex2);
+        produit = *(addr) ;
+        nb_vide = *(addr + 8);
         //production
         produit ++;
         nb_vide --;
+        *(addr) = produit;
+        *(addr + 8) = nb_vide;
         printf("Production !!!%d\n",produit );
         sleep(duree);
         //fin production
-        sem_post(&mutex);
-        sem_post(&plein);
+        sem_post(mutex2);
+        sem_post(plein2);
+        i--;
     }
 
 }
 
-void consommer(){
-    while (1){
-        sem_wait(&plein);
-        sem_wait(&mutex);
+void consommer(short * addr){
+    int i=5;
+    while (i>0){
+        sem_wait(plein2);
+        sem_wait(mutex2);
+        consom = *(addr + 4);
+        nb_vide = *(addr + 8);
         //production
         consom ++;
         nb_vide++;
+        *(addr + 4) = consom;
+        *(addr + 8) = nb_vide;
         printf("Consommation !!!%d\n",consom );
         sleep(duree);
         //fin production
-        sem_post(&mutex);
-        sem_post(&vide);
+        sem_post(mutex2);
+        sem_post(vide2);
+        i--;
     }
 
 }
