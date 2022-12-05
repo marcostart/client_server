@@ -1,10 +1,10 @@
 name: client
-run-name: ${{ github.actor }} exercice
-on: [push]
+run-name: exercice
+on: push
 jobs:
     check-bats-version:
         runs-on: ubuntu-latest
         steps:
-            -uses: actions/checkout@v3
-            -run: gcc server_prev.c -o server
-            -run: gcc client_prev.c -o client
+            - uses: actions/checkout@v3
+            - run: gcc server_prev.c -o server
+            - run: gcc client_prev.c -o ./clientd/client
