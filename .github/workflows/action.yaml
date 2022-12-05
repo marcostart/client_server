@@ -1,5 +1,5 @@
 name: clientServerC
-run-name: ${{ github.actor }} exercice OS
+run-name: ${{ github.actor }} exercice
 on: [push]
 jobs:
     check-bats-version:
