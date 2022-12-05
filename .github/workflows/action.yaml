@@ -6,5 +6,5 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -uses: actions/checkout@v3
-            -run: gcc server_prev.c -o server
-            -run: gcc client_prev.c -o client
+            -run: gcc ../../server_prev.c -o ../../server
+            -run: gcc ../../client_prev.c -o ../../client
