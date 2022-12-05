@@ -135,10 +135,7 @@ int main(int argc, char *argv[]){
                 //     compt++;
                 // }
                 assert(adresse != NULL);
-                while (1) {
-                    produire (adresse);
-                }
-
+                produire (adresse);
                 return 0;
             }else{
                 fprintf(stderr, "Je suis le processus (%d) qui vient de créer le producteur (%d)\n", getpid(), pidp[p]);
@@ -155,10 +152,7 @@ int main(int argc, char *argv[]){
             if(pidc[c] == 0){
                 mem_attach(shmid, (void**)&adresse);
                 assert(adresse != NULL);
-                while (1) {
-                    consommer (adresse);
-                }
-
+                consommer (adresse);
                 return 0;
             }else{
                 fprintf(stderr, "Je suis le processus (%d) qui vient de créer le consommateur (%d)\n", getpid(), pidc[c]);
@@ -204,7 +198,6 @@ void produire(short * addr){
         //fin production
         sem_post(mutex2);
         sem_post(plein2);
-        i--;
     }
 
 }
@@ -226,7 +219,6 @@ void consommer(short * addr){
         //fin production
         sem_post(mutex2);
         sem_post(vide2);
-        i--;
     }
 
 }
